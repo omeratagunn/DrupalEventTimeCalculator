@@ -1,0 +1,8 @@
+name: Omer Agile Block
+description: Creating block for time
+package: Custom
+type: module
+version: 0.1
+core: 8.x
+dependencies:
+  -block
