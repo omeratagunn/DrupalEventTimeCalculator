@@ -27,11 +27,8 @@ class TimeController extends BlockBase
 
     public function build() {
 
-        $t = new EventTimeCalculator();
-        $t->setEventInstance(\Drupal::routeMatch()->getParameter('node'));
-
         return [
-            '#markup' => $t->printResult(),
+            '#markup' =>  (new EventTimeCalculator(\Drupal::routeMatch()->getParameter('node')))->getEventStatus(),
         ];
     }
 

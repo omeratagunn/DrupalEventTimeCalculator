@@ -1,129 +1,69 @@
 <?php
 namespace Drupal\omerblock\Plugin\Block\Lib;
 
+use Drupal\Core\Datetime\DateFormatter;
+use Drupal\Core\Datetime\DrupalDateTime;
 use Drupal\Core\Entity\EntityMalformedException;
-use Drupal\omerblock\Plugin\Block\Lib\EventCalculatorInterface;
+use Drupal\node\NodeInterface;
 
-
-class EventTimeCalculator implements EventCalculatorInterface
+class EventTimeCalculator
 {
 
     // Since drupal supports >= 5.6 cant declare return types //
 
-    public $instance;
-    public $error;
-    public $current_time;
-    public $event_date;
+    private $node_instance;
+    private $current_day;
+    private $event_day;
 
 
 
-    // key item relation in result might give you flexibilty to add new params in need //
-    protected $result = [
-        'days' => null,
-        'hours' => null,
-    ];
+    public function getEventStatus(){
 
+      if($this->current_day > $this->event_day){
 
-    public function HowManyDaysLeft(){
+          return 'This event already passed';
+      }
 
-        $this->setDateField();
+      if($this->current_day == $this->event_day){
 
-        if(!$this->isSetFieldDate()){
-           throw new EntityMalformedException('Field date is just empty :(. Please set the field you desired by calling setDateField()');
-        }
+          return 'This event is happening today';
+      }
 
-        $this->setCurrentTime();
-        $this->setResult();
+      if($this->current_day < $this->event_day){
 
-        return $this->result;
+          $diff = strtotime($this->node_instance->field_event_date->value) - \Drupal::time()->getCurrentTime();
 
-    }
+          $days_left = floor( $diff / ( 60 * 60 * 24 ) ); //seconds/minute*minutes/hour*hours/day)
 
+          return $days_left . ' days left until event starts';
 
-    public function setEventInstance($instance){
+      }
 
-        if(!$instance instanceof \Drupal\node\NodeInterface){
-            \Drupal::logger('EventTimeCalculator')->error('Instance of event time calculator,  must be an instance of Drupal');
-             throw new EntityMalformedException('Instance of event time calculator,  must be an instance of Drupal');
-
-        }
-        $this->instance = $instance;
+        //return \Drupal::service('date.formatter')->format($this->node_instance->field_event_date->getTimeStamp(), 'custom', 'd-m-Y');
 
     }
 
-    public function getInstance(){
-
-        return $this->instance;
-
-    }
-
-    public function isSetFieldDate(){
-
-        return $this->getDateField();
-
-    }
-
-    protected function setDateField($date = '') {
-
-        if(empty($date)){
-        return $this->event_date = strtotime($this->instance->field_event_date->value);
-        }
-        return $this->event_date = strtotime($date);
-
-    }
 
     /**
-     * @return mixed
+     * EventTimeCalculator constructor.
+     * @param NodeInterface $instance
+     * @throws EntityMalformedException
      */
-    public function getDateField(){
+    public function __construct(NodeInterface $instance){
 
-        return $this->event_date;
-
-    }
-
-    public function setCurrentTime(){
-       // Set Drupal current time //
-        $this->current_time = \Drupal::time()->getCurrentTime();
-
-    }
-
-    public function setResult(){
-        // Find difference in event date and current time in form of seconds //
-        $diff = $this->event_date - $this->current_time;
-
-        // Get Days //
-        $this->result['days'] = floor( $diff / ( 60 * 60 * 24 ) ); //seconds/minute*minutes/hour*hours/day)
-
-        // Get Hours //
-        $this->result['hours'] = round(( $diff - $this->result['days'] * 60 * 60 * 24 ) / ( 60 * 60 ) );
-
-       // formula might be assigned into properties but would be just funny that much //
-       // void method, in future can be changed as long as result returned, no problem at all. //
-    }
-
-    public function printResult(){
-        // this is for at least some visuality. does not go into themes. yes its hardcoded :)  //
-
-        $this->HowManyDaysLeft();
-
-
-        if($this->result['days'] < 0){
-
-            return 'This event already passed';
+        if(!$instance instanceof NodeInterface){
+            \Drupal::logger('EventTimeCalculator')->error('Instance of event time calculator,  must be an instance of Drupal');
+            throw new EntityMalformedException('Instance of event time calculator,  must be an instance of Drupal');
 
         }
 
-        if($this->result['days'] >= 1){
+        $this->node_instance = $instance;
 
-            return $this->result['days'] .' days ' . $this->result['hours'] . ' hours left';
+        $this->event_day= date('m-d-Y', strtotime($this->node_instance->field_event_date->value));
 
-        }
+        // dont know if this is related on user locale //
+        $this->current_day = \Drupal::service('date.formatter')->format(\Drupal::time()->getCurrentTime(), 'custom', 'm-d-Y');
 
-        if($this->result['days'] == 0 AND $this->result['hours'] > 0){
-
-            return 'This event is happening today in ' . $this->result['hours'] . ' hours';
-
-        }
 
     }
 
